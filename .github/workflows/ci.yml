@@ -35,15 +35,25 @@ jobs:
     - name: Run tests
       run: |
         poetry run pytest tests/ -v
+  
+  # Call the version-bump workflow to bump the version before publishing
+  version-bump:
+    needs: test
+    uses: ./.github/workflows/version-bump.yml
+    # Only run on release branch when push (merge)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/release'
         
   publish:
-    needs: test
+    needs: version-bump
     runs-on: ubuntu-latest
     # Only run on release branch when push (merge)
     if: github.event_name == 'push' && github.ref == 'refs/heads/release'
     
     steps:
     - uses: actions/checkout@v3
+      with:
+        ref: 'refs/heads/release'
+        fetch-depth: 0
     
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -55,6 +65,10 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         python -m pip install poetry
+    
+    - name: Fetch latest changes with updated version
+      run: |
+        git pull origin release  # Make sure we have the latest version after bump
         
     - name: Build and publish
       env:

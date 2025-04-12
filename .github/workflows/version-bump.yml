@@ -1,6 +1,11 @@
 name: Version Bump
 
 on:
+  workflow_call:
+    outputs:
+      new_version:
+        description: "The new version number"
+        value: ${{ jobs.bump-version.outputs.new_version }}
   push:
     branches: [ release ]
 
@@ -9,6 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    # Only run on direct push to release, not when called by another workflow
+    if: ${{ github.event_name == 'push' || !github.event.workflow_call }}
+    outputs:
+      new_version: ${{ steps.set-version.outputs.new_version }}
     
     steps:
     - uses: actions/checkout@v3
@@ -31,6 +40,7 @@ jobs:
         git config --local user.name "GitHub Action"
     
     - name: Bump version
+      id: set-version
       run: |
         # Python script to bump version
         python - << 'EOF'
@@ -58,9 +68,13 @@ jobs:
         with open('pyproject.toml', 'w') as f:
             f.write(tomlkit.dumps(pyproject))
             
-        # Save the new version to an environment variable for later steps
+        # Save the new version to environment variables for later steps
         with open(os.environ['GITHUB_ENV'], 'a') as f:
             f.write(f"NEW_VERSION={new_version}\n")
+        
+        # Set output for the workflow
+        with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+            f.write(f"new_version={new_version}\n")
         EOF
         
         # Commit and push changes
