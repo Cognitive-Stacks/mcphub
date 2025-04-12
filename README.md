@@ -19,7 +19,13 @@ brew install git         # macOS
 npm install -g npx
 
 # Install MCPHub
-pip install mcphub
+pip install mcphub  # Basic installation
+
+# Optional: Install with framework-specific dependencies
+pip install mcphub[openai]    # For OpenAI Agents integration
+pip install mcphub[langchain] # For LangChain integration
+pip install mcphub[autogen]   # For Autogen integration
+pip install mcphub[all]       # Install all optional dependencies
 ```
 
 ### Configuration
