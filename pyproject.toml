@@ -25,11 +25,24 @@ dependencies = [
     "python-dotenv>=1.0.0,<2.0.0",
     "build (>=1.2.2.post1,<2.0.0)",
     "twine (>=6.1.0,<7.0.0)",
+]
+requires-python = "<4.0,>=3.10"
+
+[project.optional-dependencies]
+openai = [
+    "openai-agents (>=0.0.9,<0.0.10)",
+]
+langchain = [
+    "langchain-mcp-adapters (>=0.0.7,<0.0.8)",
+]
+autogen = [
+    "autogen-ext[mcp] (>=0.5.1,<0.6.0)",
+]
+all = [
     "openai-agents (>=0.0.9,<0.0.10)",
     "langchain-mcp-adapters (>=0.0.7,<0.0.8)",
     "autogen-ext[mcp] (>=0.5.1,<0.6.0)",
 ]
-requires-python = "<4.0,>=3.10"
 
 [project.urls]
 Documentation = "https://raw.githubusercontent.com/Cognitive-Stack/mcphub/refs/heads/master/README.md"
@@ -38,3 +51,8 @@ Source = "https://github.com/Cognitive-Stack/mcphub"
 
 [project.scripts]
 mcphub = "mcphub.cli.commands:main"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.5"
+pytest-asyncio = "^0.26.0"
+

@@ -1,0 +1,64 @@
+name: Version Bump
+
+on:
+  push:
+    branches: [ release ]
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.12"
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install tomlkit
+    
+    - name: Configure Git
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+    
+    - name: Bump version
+      run: |
+        # Python script to bump version
+        python - << 'EOF'
+        import tomlkit
+        import re
+        
+        # Read current version from pyproject.toml
+        with open('pyproject.toml', 'r') as f:
+            pyproject = tomlkit.parse(f.read())
+        
+        current_version = pyproject['project']['version']
+        print(f"Current version: {current_version}")
+        
+        # Parse version components
+        match = re.match(r"(\d+)\.(\d+)\.(\d+)(.*)$", current_version)
+        major, minor, patch, suffix = match.groups()
+        
+        # Bump patch version
+        new_version = f"{major}.{minor}.{int(patch) + 1}{suffix}"
+        print(f"New version: {new_version}")
+        
+        # Update pyproject.toml
+        pyproject['project']['version'] = new_version
+        with open('pyproject.toml', 'w') as f:
+            f.write(tomlkit.dumps(pyproject))
+        EOF
+        
+        # Commit and push changes
+        git add pyproject.toml
+        git commit -m "Bump version for new release"
+        git push

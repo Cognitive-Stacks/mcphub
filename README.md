@@ -293,6 +293,34 @@ MCPHub simplifies the integration of Model Context Protocol (MCP) servers into A
 
 This architecture provides a seamless way to integrate MCP capabilities into any AI application while maintaining clean separation of concerns and framework flexibility.
 
+## Development
+
+### Testing
+
+Run the unit tests with pytest:
+
+```bash
+pytest tests/ -v
+```
+
+### CI/CD Pipeline
+
+This project uses GitHub Actions for continuous integration and deployment:
+
+1. **Automated Testing**: Tests are run on Python 3.10, 3.11, and 3.12 for every push to main and release branches and for pull requests.
+
+2. **Automatic Version Bumping**: When code is pushed to the `release` branch, the patch version is automatically incremented.
+
+3. **PyPI Publishing**: When code is merged to the `release` branch and tests pass, the package is automatically built and published to PyPI.
+
+#### Setting Up PyPI Deployment
+
+To enable automatic PyPI deployment, you need to add a PyPI API token as a GitHub Secret:
+
+1. Generate a PyPI API token at https://pypi.org/manage/account/token/
+2. Go to your GitHub repository settings → Secrets and variables → Actions
+3. Add a new repository secret named `PYPI_API_TOKEN` with the token value from PyPI
+
 ## Contributing
 
 We welcome contributions! Please check out our [Contributing Guide](CONTRIBUTING.md) for guidelines on how to proceed.
