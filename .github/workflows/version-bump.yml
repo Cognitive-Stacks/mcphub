@@ -36,6 +36,7 @@ jobs:
         python - << 'EOF'
         import tomlkit
         import re
+        import os
         
         # Read current version from pyproject.toml
         with open('pyproject.toml', 'r') as f:
@@ -56,9 +57,20 @@ jobs:
         pyproject['project']['version'] = new_version
         with open('pyproject.toml', 'w') as f:
             f.write(tomlkit.dumps(pyproject))
+            
+        # Save the new version to an environment variable for later steps
+        with open(os.environ['GITHUB_ENV'], 'a') as f:
+            f.write(f"NEW_VERSION={new_version}\n")
         EOF
         
         # Commit and push changes
         git add pyproject.toml
-        git commit -m "Bump version for new release"
+        git commit -m "Bump version to ${NEW_VERSION} [skip ci]"
         git push
+    
+    - name: Create and push tag
+      run: |
+        # Create a new tag with the bumped version
+        git tag -a "v${NEW_VERSION}" -m "Release version ${NEW_VERSION}"
+        # Push the tag to the remote repository
+        git push origin "v${NEW_VERSION}"

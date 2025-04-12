@@ -315,9 +315,12 @@ This project uses GitHub Actions for continuous integration and deployment:
 
 1. **Automated Testing**: Tests are run on Python 3.10, 3.11, and 3.12 for every push to main and release branches and for pull requests.
 
-2. **Automatic Version Bumping**: When code is pushed to the `release` branch, the patch version is automatically incremented.
+2. **Automatic Version Bumping and Tagging**: When code is pushed to the `release` branch:
+   - The patch version is automatically incremented in `pyproject.toml`
+   - A new Git tag (e.g., `v0.1.2`) is created for the release
+   - Changes are committed back to the repository
 
-3. **PyPI Publishing**: When code is merged to the `release` branch and tests pass, the package is automatically built and published to PyPI.
+3. **PyPI Publishing**: When code is pushed to the `release` branch and tests pass, the package is automatically built and published to PyPI.
 
 #### Setting Up PyPI Deployment
 

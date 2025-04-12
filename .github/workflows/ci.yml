@@ -56,23 +56,6 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install poetry
         
-    - name: Bump version
-      run: |
-        # Get the current version
-        current_version=$(poetry version -s)
-        echo "Current version: $current_version"
-        
-        # Bump patch version
-        poetry version patch
-        new_version=$(poetry version -s)
-        echo "Bumped to version: $new_version"
-        
-        # Commit the version change
-        git config --global user.name 'GitHub Actions'
-        git config --global user.email 'actions@github.com'
-        git commit -am "Bump version to $new_version [skip ci]"
-        git push
-        
     - name: Build and publish
       env:
         PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
