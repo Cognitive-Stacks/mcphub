@@ -86,7 +86,7 @@ class TestMCPHub:
         
         # Set up the method to raise an exception for non-existent server
         hub.servers_params.convert_to_stdio_params.side_effect = lambda name: (
-            stdio_params if name == "test-server" else exec('raise ServerConfigNotFoundError(f"Server \'{name}\' not found")')
+            stdio_params if name == "test-server" else (_ for _ in ()).throw(ServerConfigNotFoundError(f"Server '{name}' not found"))
         )
         
         # Test with non-existent server
