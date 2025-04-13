@@ -1,26 +1,34 @@
 from mcphub import MCPHub
-import json
 
-async def main():
+server_name = "Gloomysunday28/mcp-server"
 
+async def framework_examples():
     hub = MCPHub()
     
+    # 1. OpenAI Agents Integration
     async with hub.fetch_openai_mcp_server(
-        mcp_name="MCP-Mirror/Automata-Labs-team_MCP-Server-Playwright",
+        mcp_name=server_name,
         cache_tools_list=True
     ) as server:
-        # Step 3: List available tools from the MCP server
-        # This shows what capabilities are available to your agent
         tools = await server.list_tools()
-        
-        # Pretty print the tools for better readability
-        tools_dict = [
-            dict(tool) if hasattr(tool, "__dict__") else tool for tool in tools
-        ]
-        print("Available MCP Tools:")
-        print(json.dumps(tools_dict, indent=2))
+        print(f"Tools from MCP server: {tools}")
+    # 2. LangChain Tools Integration
+    langchain_tools = await hub.fetch_langchain_mcp_tools(
+        mcp_name=server_name,
+        cache_tools_list=True
+    )
+    
+    print(f"LangChain tools from MCP server: {langchain_tools}")
+    
+    # 3. Autogen Adapters Integration
+    autogen_adapters = await hub.fetch_autogen_mcp_adapters(
+        mcp_name=server_name
+    )
+    # Use adapters with Autogen
+
+    print(f"Autogen adapters from MCP server: {autogen_adapters}")
 
 
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(main())
+    asyncio.run(framework_examples())
