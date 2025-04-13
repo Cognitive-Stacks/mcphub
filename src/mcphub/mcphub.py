@@ -18,13 +18,15 @@ class MCPHub:
         self.servers_params = MCPServersParams(config_path)
         self.servers = MCPServers(self.servers_params)
 
-    def _find_config_path(self) -> str:
+    def _find_config_path(self) -> Optional[str]:
         current_dir = Path.cwd()
         for parent in [current_dir] + list(current_dir.parents):
             config_path = parent / ".mcphub.json"
             if config_path.exists():
                 return str(config_path)
-        raise FileNotFoundError("Configuration file '.mcphub.json' not found in the project root or any parent directories.")
+        # Instead of raising an error, return None to indicate no config file was found
+        # This will allow us to still use preconfigured servers
+        return None
 
     def fetch_server_params(self, mcp_name: str) -> Optional[MCPServerConfig]:
         return self.servers_params.retrieve_server_params(mcp_name)

@@ -21,12 +21,17 @@ class MCPServers:
     def _get_cache_dir(self) -> Path:
         """Get the cache directory path, creating it if it doesn't exist."""
         current_dir = Path.cwd()
+        # First try to find a project root with .mcphub.json
         for parent in [current_dir] + list(current_dir.parents):
             if (parent / ".mcphub.json").exists():
                 cache_dir = parent / ".mcphub_cache"
                 cache_dir.mkdir(exist_ok=True)
                 return cache_dir
-        raise FileNotFoundError("Could not find project root directory with .mcphub.json")
+        
+        # If no .mcphub.json was found, create cache in the current working directory
+        cache_dir = current_dir / ".mcphub_cache"
+        cache_dir.mkdir(exist_ok=True)
+        return cache_dir
 
     def _clone_repository(self, repo_url: str, repo_name: str) -> Path:
         """Clone a repository into the cache directory."""
@@ -204,4 +209,4 @@ class MCPServers:
             List[BaseTool]: List of tools provided by the MCP server
         """
         async with self.make_openai_mcp_server(mcp_name, cache_tools_list=True) as server:
-            return await server.list_tools()    
+            return await server.list_tools()

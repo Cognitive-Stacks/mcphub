@@ -91,13 +91,15 @@ class TestMCPServersParams:
         # Setup mock for Path.exists()
         mock_exists.return_value = True
         
-        # Mock _load_predefined_servers_params to return our test data
+        # Mock _load_predefined_servers_params to return our test data with the correct structure
         mock_predefined_data = {
-            "predefined-server": {
-                "command": "python",
-                "args": ["-m", "predefined_server"],
-                "description": "Predefined MCP Server",
-                "tags": ["predefined", "demo"]
+            "mcpServers": {
+                "predefined-server": {
+                    "command": "python",
+                    "args": ["-m", "predefined_server"],
+                    "description": "Predefined MCP Server",
+                    "tags": ["predefined", "demo"]
+                }
             }
         }
         
