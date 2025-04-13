@@ -118,3 +118,47 @@ def mock_mcphub_init(monkeypatch, temp_config_file):
     monkeypatch.setattr("mcphub.mcp_servers.servers.MCPServers._setup_all_servers", mock_setup_all_servers)
     
     return str(temp_config_file)
+
+
+@pytest.fixture
+def test_config_path(tmp_path) -> Path:
+    """Create a temporary config file for testing"""
+    config = {
+        "mcpServers": {
+            "test-mcp": {
+                "package_name": "test-package",
+                "command": "echo",
+                "args": ["test"],
+                "env": {"TEST_ENV": "test_value"}
+            },
+            "python-mcp": {
+                "package_name": "python-package",
+                "repo_url": "https://github.com/test/python-mcp",
+                "command": "python",
+                "args": ["-m", "mcp_server"],
+                "setup_script": "pip install -e .",
+                "env": {"PYTHON_ENV": "test_value"}
+            }
+        }
+    }
+    config_file = tmp_path / ".mcphub.json"
+    config_file.write_text(json.dumps(config))
+    return config_file
+
+
+@pytest.fixture
+def mock_session():
+    """Mock MCP session for testing"""
+    class MockSession:
+        async def initialize(self):
+            pass
+        
+        async def list_tools(self):
+            class ToolsList:
+                tools = [
+                    {"name": "tool1", "description": "Test tool 1"},
+                    {"name": "tool2", "description": "Test tool 2"}
+                ]
+            return ToolsList()
+            
+    return MockSession()

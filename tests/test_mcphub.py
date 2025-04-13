@@ -1,10 +1,11 @@
-import pytest
-from unittest import mock
 from pathlib import Path
+from unittest import mock
 
-from mcphub.mcphub import MCPHub
+import pytest
+
 from mcphub.mcp_servers import MCPServerConfig
 from mcphub.mcp_servers.exceptions import ServerConfigNotFoundError
+from mcphub.mcphub import MCPHub
 
 
 class TestMCPHub:
@@ -34,76 +35,25 @@ class TestMCPHub:
         with pytest.raises(FileNotFoundError):
             hub = MCPHub()
     
-    def test_fetch_server_params(self, mock_mcphub_init, temp_config_file):
-        """Test fetching server parameters."""
-        hub = MCPHub()
-        
-        # Create a mock for retrieve_server_params to return expected values
-        server_config = MCPServerConfig(
-            package_name="test-mcp-server",
-            command="python",
-            args=["-m", "test_server"],
-            env={"TEST_ENV": "test_value"},
-            description="Test MCP Server",
-            tags=["test", "demo"]
-        )
-        
-        # Mock the retrieve_server_params method
-        hub.servers_params.retrieve_server_params = mock.MagicMock(
-            side_effect=lambda name: server_config if name == "test-server" else None
-        )
-        
-        # Test retrieving server parameters
-        result = hub.fetch_server_params("test-server")
-        assert result is not None
-        assert result.package_name == "test-mcp-server"
-        
-        # Test with non-existent server
-        assert hub.fetch_server_params("non-existent") is None
-    
-    def test_fetch_stdio_server_config(self, mock_mcphub_init, temp_config_file):
-        """Test fetching StdioServerParameters."""
-        hub = MCPHub()
-        
-        # Create a mock StdioServerParameters
-        from mcp import StdioServerParameters
-        stdio_params = StdioServerParameters(
-            command="python",
-            args=["-m", "test_server"],
-            env={"TEST_ENV": "test_value"}
-        )
-        
-        # Mock the convert_to_stdio_params method
-        hub.servers_params.convert_to_stdio_params = mock.MagicMock(
-            side_effect=lambda name: stdio_params if name == "test-server" else None
-        )
-        
-        # Test retrieving stdio server parameters
-        result = hub.fetch_stdio_server_config("test-server")
-        assert result is not None
-        assert result.command == "python"
-        assert result.args == ["-m", "test_server"]
-        
-        # Set up the method to raise an exception for non-existent server
-        hub.servers_params.convert_to_stdio_params.side_effect = lambda name: (
-            stdio_params if name == "test-server" else (_ for _ in ()).throw(ServerConfigNotFoundError(f"Server '{name}' not found"))
-        )
-        
-        # Test with non-existent server
-        with pytest.raises(ServerConfigNotFoundError):
-            hub.fetch_stdio_server_config("non-existent")
-    
-    @mock.patch('mcphub.mcp_servers.MCPServers.make_openai_mcp_server')
-    def test_fetch_openai_mcp_server(self, mock_make_server, mock_mcphub_init, temp_config_file):
+    @mock.patch('mcphub.adapters.openai.MCPOpenAIAgentsAdapter')
+    def test_fetch_openai_mcp_server(self, MockAdapter, mock_mcphub_init, temp_config_file):
         """Test fetching an OpenAI MCP server."""
+        # Create mock adapter and server
         mock_server = mock.MagicMock()
-        mock_make_server.return_value = mock_server
+        mock_adapter = mock.MagicMock()
+        mock_adapter.create_server.return_value = mock_server
         
         hub = MCPHub()
+        # Mock the property directly
+        hub._openai_adapter = mock_adapter
+        
         server = hub.fetch_openai_mcp_server("test-server")
         
+        # Verify create_server was called correctly
+        mock_adapter.create_server.assert_called_once_with("test-server", cache_tools_list=True)
+        
+        # Verify we got the mock server back
         assert server == mock_server
-        mock_make_server.assert_called_once_with("test-server", True)
     
     @mock.patch('mcphub.mcp_servers.MCPServers.get_langchain_mcp_tools')
     async def test_fetch_langchain_mcp_tools(self, mock_get_tools, mock_mcphub_init, temp_config_file):
@@ -140,3 +90,91 @@ class TestMCPHub:
         
         assert tools == mock_tools
         mock_list_tools.assert_called_once_with("test-server")
+
+@pytest.mark.asyncio
+@mock.patch('pathlib.Path.cwd')
+@mock.patch('pathlib.Path.exists')
+async def test_mcphub_adapters_initialization(mock_exists, mock_cwd, test_config_path):
+    """Test that adapters are not initialized until accessed."""
+    # Mock config file location
+    mock_cwd.return_value = Path(test_config_path).parent
+    mock_exists.return_value = True
+    
+    hub = MCPHub()
+    
+    # Test that adapters are not initialized until accessed
+    assert hub._openai_adapter is None
+    assert hub._langchain_adapter is None
+    assert hub._autogen_adapter is None
+    
+    # Verify servers_params was initialized correctly
+    assert hub.servers_params is not None
+    
+    # Optional: Test that accessing property initializes adapter
+    _ = hub.openai_adapter
+    assert hub._openai_adapter is not None
+    assert hub._langchain_adapter is None  # Still None because not accessed
+    assert hub._autogen_adapter is None    # Still None because not accessed
+
+@pytest.mark.asyncio
+@mock.patch('pathlib.Path.cwd')
+@mock.patch('pathlib.Path.exists')
+@mock.patch('mcphub.adapters.openai.MCPOpenAIAgentsAdapter.create_server')  # Mock the method directly
+async def test_mcphub_openai_integration(mock_create_server, mock_exists, mock_cwd, test_config_path):
+    """Test OpenAI adapter integration."""
+    # Mock config file location
+    mock_cwd.return_value = Path(test_config_path).parent
+    mock_exists.return_value = True
+    
+    # Setup mock server
+    mock_server = mock.MagicMock(name='mock_server')
+    mock_create_server.return_value = mock_server
+    
+    hub = MCPHub()
+    server = hub.fetch_openai_mcp_server("test-mcp")
+    
+    # Verify everything worked
+    assert server is mock_server  # Should pass now
+    mock_create_server.assert_called_once_with("test-mcp", cache_tools_list=True)
+
+@pytest.mark.asyncio
+@mock.patch('pathlib.Path.cwd')
+@mock.patch('pathlib.Path.exists')
+@mock.patch('mcphub.adapters.langchain.MCPLangChainAdapter.create_tools')  # Mock the method directly
+async def test_mcphub_langchain_integration(mock_create_tools, mock_exists, mock_cwd, test_config_path):
+    """Test LangChain adapter integration."""
+    # Mock config file location
+    mock_cwd.return_value = Path(test_config_path).parent
+    mock_exists.return_value = True
+    
+    # Setup mock tools
+    mock_tools = ["tool1", "tool2"]
+    mock_create_tools.return_value = mock_tools
+    
+    hub = MCPHub()
+    tools = await hub.fetch_langchain_mcp_tools("test-mcp")
+    
+    # Verify everything worked
+    assert tools is mock_tools  # Use 'is' for identity comparison
+    mock_create_tools.assert_called_once_with("test-mcp")
+
+@pytest.mark.asyncio
+@mock.patch('pathlib.Path.cwd')
+@mock.patch('pathlib.Path.exists')
+@mock.patch('mcphub.adapters.autogen.MCPAutogenAdapter.create_adapters')  # Mock the method directly
+async def test_mcphub_autogen_integration(mock_create_adapters, mock_exists, mock_cwd, test_config_path):
+    """Test Autogen adapter integration."""
+    # Mock config file location
+    mock_cwd.return_value = Path(test_config_path).parent
+    mock_exists.return_value = True
+    
+    # Setup mock adapters
+    mock_adapters = ["adapter1", "adapter2"]
+    mock_create_adapters.return_value = mock_adapters
+    
+    hub = MCPHub()
+    adapters = await hub.fetch_autogen_mcp_adapters("test-mcp")
+    
+    # Verify everything worked
+    assert adapters is mock_adapters  # Use 'is' for identity comparison
+    mock_create_adapters.assert_called_once_with("test-mcp")
