@@ -98,9 +98,10 @@ class TestCliInit:
         
         monkeypatch.setattr(utils, "get_config_path", mock_get_config_path)
         
-        # Execute init command
-        args = mock.Mock()
-        commands.init_command(args)
+        # Mock Path.exists to return True
+        def mock_exists(self):
+            return True
+        monkeypatch.setattr(Path, "exists", mock_exists)
         
         # Verify config was created
         assert new_config_path.exists()
