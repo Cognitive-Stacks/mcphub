@@ -1,11 +1,14 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Any
+from typing import Any, List, Optional
 
-from .mcp_servers import MCPServersParams, MCPServers
-from .adapters.openai import MCPOpenAIAgentsAdapter
-from .adapters.langchain import MCPLangChainAdapter
+from mcp import Tool
+
 from .adapters.autogen import MCPAutogenAdapter
+from .adapters.langchain import MCPLangChainAdapter
+from .adapters.openai import MCPOpenAIAgentsAdapter
+from .mcp_servers import MCPServers, MCPServersParams, MCPServerConfig
+
 
 @dataclass
 class MCPHub:
@@ -19,7 +22,7 @@ class MCPHub:
         self.servers_params = MCPServersParams(config_path)
         self.servers = MCPServers(self.servers_params)
 
-    def _find_config_path(self) -> str:
+    def _find_config_path(self) -> Optional[str]:
         current_dir = Path.cwd()
         for parent in [current_dir] + list(current_dir.parents):
             config_path = parent / ".mcphub.json"
@@ -53,5 +56,11 @@ class MCPHub:
     
     async def fetch_autogen_mcp_adapters(self, mcp_name: str) -> List[Any]:
         return await self.autogen_adapter.create_adapters(mcp_name)
+    
+    async def list_tools(self, server_name: str) -> List[Tool]:
+        return await self.servers.list_tools(server_name)
+    
+    def list_servers(self) -> List[MCPServerConfig]:
+        return self.servers_params.list_servers()
 
     

@@ -15,6 +15,7 @@ class TestMCPServersParams:
         
         assert len(server_params) == 1
         assert server_params[0].package_name == "test-mcp-server"
+        assert server_params[0].server_name == "test-server"
         assert server_params[0].command == "python"
         assert server_params[0].args == ["-m", "test_server"]
         assert server_params[0].env == {"TEST_ENV": "test_value"}
@@ -30,9 +31,11 @@ class TestMCPServersParams:
         assert server_config.package_name == "test-mcp-server"
         assert server_config.command == "python"
         
-        # Test with non-existent server
-        assert params.retrieve_server_params("non-existent") is None
-    
+        # Test with non-existent server - should raise ServerConfigNotFoundError
+        with pytest.raises(ServerConfigNotFoundError) as exc_info:
+            params.retrieve_server_params("non-existent")
+        assert str(exc_info.value) == "Server 'non-existent' not found"
+
     def test_convert_to_stdio_params(self, temp_config_file):
         """Test converting server parameters to StdioServerParameters."""
         params = MCPServersParams(str(temp_config_file))
@@ -91,13 +94,15 @@ class TestMCPServersParams:
         # Setup mock for Path.exists()
         mock_exists.return_value = True
         
-        # Mock _load_predefined_servers_params to return our test data
+        # Mock _load_predefined_servers_params to return our test data with the correct structure
         mock_predefined_data = {
-            "predefined-server": {
-                "command": "python",
-                "args": ["-m", "predefined_server"],
-                "description": "Predefined MCP Server",
-                "tags": ["predefined", "demo"]
+            "mcpServers": {
+                "predefined-server": {
+                    "command": "python",
+                    "args": ["-m", "predefined_server"],
+                    "description": "Predefined MCP Server",
+                    "tags": ["predefined", "demo"]
+                }
             }
         }
         

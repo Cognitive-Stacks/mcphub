@@ -14,6 +14,7 @@ class MCPServerConfig:
     command: str
     args: List[str]
     env: Dict[str, str]
+    server_name: Optional[str] = None
     description: Optional[str] = None
     tags: Optional[List[str]] = None
     repo_url: Optional[str] = None
@@ -21,22 +22,32 @@ class MCPServerConfig:
     cwd: Optional[str] = None
     
 class MCPServersParams:
-    def __init__(self, config_path: str):
+    def __init__(self, config_path: Optional[str]):
         self.config_path = config_path
         self._servers_params = self._load_servers_params()
 
     @property
     def servers_params(self) -> List[MCPServerConfig]:
         """Return the list of server parameters."""
-        return list(self._servers_params.values())
+        server_configs = []
+        for server_name, server_params in self._servers_params.items():
+            server_params.server_name = server_name
+            server_configs.append(server_params)
+        return server_configs
 
     def _load_user_config(self) -> Dict:
         """Load user configuration from JSON file."""
+        # If no config path is provided, return empty dict
+        if not self.config_path:
+            return {}
+            
         try:
             with open(self.config_path, "r") as f:
                 config = json.load(f)
                 return config.get("mcpServers", {})
         except FileNotFoundError:
+            # For test compatibility: raise FileNotFoundError when path is specified but file doesn't exist
+            # Only return empty dict when path is None
             raise FileNotFoundError(f"Configuration file not found: {self.config_path}")
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON in configuration file: {e}")
@@ -71,8 +82,8 @@ class MCPServersParams:
                     setup_script=server_config.get("setup_script")
                 )
             # Fallback to predefined configuration
-            elif package_name and predefined_servers_params.get(package_name):
-                cmd_info = predefined_servers_params[package_name]
+            elif package_name and predefined_servers_params.get("mcpServers", {}).get(package_name):
+                cmd_info = predefined_servers_params["mcpServers"][package_name]
                 servers[mcp_name] = MCPServerConfig(
                     package_name=package_name,
                     command=cmd_info.get("command"),
@@ -88,10 +99,17 @@ class MCPServersParams:
                     f"Server '{package_name}' must either have command and args configured in .mcphub.json "
                     f"or be defined in mcphub_preconfigured_servers.json"
                 )
+        
         return servers
     
+    def list_servers(self) -> List[MCPServerConfig]:
+        return self.servers_params
+    
     def retrieve_server_params(self, server_name: str) -> MCPServerConfig:
-        return self._servers_params.get(server_name)
+        # First check in the loaded servers
+        if server_name in self._servers_params:
+            return self._servers_params[server_name]
+        raise ServerConfigNotFoundError(f"Server '{server_name}' not found")
     
     def convert_to_stdio_params(self, server_name: str) -> StdioServerParameters:
         server_params = self.retrieve_server_params(server_name)

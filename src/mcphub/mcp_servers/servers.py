@@ -1,5 +1,9 @@
 import subprocess
 from pathlib import Path
+from typing import List
+
+from mcp import ClientSession, StdioServerParameters, Tool
+from mcp.client.stdio import stdio_client
 
 from .exceptions import SetupError
 from .params import MCPServerConfig, MCPServersParams
@@ -15,12 +19,17 @@ class MCPServers:
     def _get_cache_dir(self) -> Path:
         """Get the cache directory path, creating it if it doesn't exist."""
         current_dir = Path.cwd()
+        # First try to find a project root with .mcphub.json
         for parent in [current_dir] + list(current_dir.parents):
             if (parent / ".mcphub.json").exists():
                 cache_dir = parent / ".mcphub_cache"
                 cache_dir.mkdir(exist_ok=True)
                 return cache_dir
-        raise FileNotFoundError("Could not find project root directory with .mcphub.json")
+        
+        # If no .mcphub.json was found, create cache in the current working directory
+        cache_dir = current_dir / ".mcphub_cache"
+        cache_dir.mkdir(exist_ok=True)
+        return cache_dir
 
     def _clone_repository(self, repo_url: str, repo_name: str) -> Path:
         """Clone a repository into the cache directory."""
@@ -80,8 +89,8 @@ class MCPServers:
 
     def _update_server_path(self, server_config: MCPServerConfig, repo_dir: Path) -> None:
         """Update the server_path in the server configuration."""
-        self.servers_params.update_server_path(server_config.package_name, str(repo_dir))
-        print(f"Updated server path for {server_config.package_name}: {repo_dir}")
+        self.servers_params.update_server_path(server_config.server_name, str(repo_dir))
+        print(f"Updated server path for {server_config.server_name}: {repo_dir}")
 
     def setup_server(self, server_config: MCPServerConfig) -> None:
         """Set up a single server if it has repo_url and setup_script."""
@@ -118,3 +127,19 @@ class MCPServers:
                 continue
 
         print("Completed server setup process")
+
+    async def list_tools(self, server_name: str) -> List[Tool]:
+        """List all tools available in the server."""
+        server_params = self.servers_params.retrieve_server_params(server_name)
+        server_params = StdioServerParameters(
+            command=server_params.command,
+            args=server_params.args,
+            env=server_params.env,
+            cwd=server_params.cwd
+        )
+        async with stdio_client(server_params) as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                tools = await session.list_tools()
+                return tools.tools
+    
