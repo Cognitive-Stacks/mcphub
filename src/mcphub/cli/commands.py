@@ -36,6 +36,40 @@ def add_command(args):
     # Only save to .mcphub.json config when client is "default" or None
     save_to_config = client is None or client == "default"
     
+    # For Claude client, we'll use preconfigured servers directly via update_claude_desktop_config
+    # We still call add_server_config for validation and environment variables
+    if client == "claude":
+        # Check if server exists in preconfigured list but don't save to .mcphub.json
+        from .utils import load_preconfigured_servers
+        preconfigured = load_preconfigured_servers()
+        if server_name not in preconfigured.get("mcpServers", {}):
+            print(f"Error: MCP server '{server_name}' not found in preconfigured servers")
+            # Show available options
+            print("\nAvailable preconfigured servers:")
+            available_servers = list_available_servers()
+            for name in available_servers:
+                print(f"- {name}")
+            sys.exit(1)
+        
+        # Handle environment variables
+        env_vars = None
+        if not non_interactive:
+            from .utils import detect_env_vars, prompt_env_vars
+            server_config = preconfigured["mcpServers"].get(server_name, {})
+            env_vars = detect_env_vars(server_config)
+            if env_vars:
+                prompt_env_vars(env_vars)
+        
+        # Update Claude desktop config directly with preconfigured server
+        success, config_path = update_claude_desktop_config(server_name)
+        if success:
+            print(f"Added configuration for '{server_name}' directly to Claude desktop at: {config_path}")
+        else:
+            print("Failed to update Claude desktop configuration. Please check if Claude is installed correctly.")
+            sys.exit(1)
+        return
+    
+    # Regular flow for non-Claude clients
     success, missing_env_vars = add_server_config(
         server_name, 
         interactive=not non_interactive,
@@ -56,8 +90,8 @@ def add_command(args):
     else:
         print(f"Using '{server_name}' without saving to .mcphub.json")
     
-    # Handle client integration
-    if client and client.lower() == "claude":
+    # Handle client integration for default client
+    if client and client.lower() == "default":
         success, config_path = update_claude_desktop_config(server_name)
         if success:
             print(f"Updated Claude desktop configuration at: {config_path}")

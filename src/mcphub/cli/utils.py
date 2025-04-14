@@ -254,9 +254,19 @@ def update_claude_desktop_config(mcp_server_name: str) -> Tuple[bool, Optional[s
             # If the file exists but can't be parsed, start with an empty config
             claude_config = {}
     
-    # Load the MCPHub configuration to get the server details
-    mcphub_config = load_config()
-    server_config = mcphub_config.get("mcpServers", {}).get(mcp_server_name)    
+    # Use the preconfigured servers directly instead of loading from .mcphub.json
+    preconfigured = load_preconfigured_servers()
+    server_config = preconfigured.get("mcpServers", {}).get(mcp_server_name)
+    
+    # Check if server_config is None - this indicates the server is in the preconfigured list but has no config
+    if server_config is None:
+        print(f"Warning: MCP server '{mcp_server_name}' has a null configuration in preconfigured servers")
+        # Create a minimal configuration
+        server_config = {
+            "name": mcp_server_name,
+            "package_name": mcp_server_name
+        }
+    
     # Ensure the mcpServers key exists in claude_config
     if "mcpServers" not in claude_config:
         claude_config["mcpServers"] = {}

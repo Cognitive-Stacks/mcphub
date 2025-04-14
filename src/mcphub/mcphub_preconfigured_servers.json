@@ -1642,16 +1642,17 @@
           }
       },
       "mashriram/azure_mcp_server": {
-          "package_name": "mashriram/azure_mcp_server",
-          "repo_url": "https://github.com/mashriram/azure_mcp_server",
-          "command": "uv",
-          "args": [
-              "--directory",
-              "/path/to/repo/azure-mcp-server",
-              "run",
-              "azure-mcp-server"
-          ]
-      },
+        "package_name": "mashriram/azure_mcp_server",
+        "repo_url": "https://github.com/mashriram/azure_mcp_server",
+        "command": "uv",
+        "args": ["run", "mcp_server_azure_cmd"],
+        "setup_script": "uv pip install -e .",
+        "env": {
+            "AZURE_STORAGE_CONNECTION_STRING": "${AZURE_STORAGE_CONNECTION_STRING}",
+            "AZURE_STORAGE_CONTAINER_NAME": "${AZURE_STORAGE_CONTAINER_NAME}",
+            "AZURE_STORAGE_BLOB_NAME": "${AZURE_STORAGE_BLOB_NAME}"
+        }
+    },
       "MCP-Mirror/PhialsBasement_mcp-github-server-plus": {
           "package_name": "MCP-Mirror/PhialsBasement_mcp-github-server-plus",
           "repo_url": "https://github.com/MCP-Mirror/PhialsBasement_mcp-github-server-plus",
