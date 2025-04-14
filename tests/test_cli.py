@@ -174,6 +174,11 @@ class TestCliAdd:
         args = mock.Mock()
         args.mcp_name = "env-server"
         args.non_interactive = False
+        args.client = None  # Ensure it saves to the config file
+        
+        # Explicitly verify the preconfigured server exists
+        preconfigured = utils.load_preconfigured_servers()
+        assert "env-server" in preconfigured.get("mcpServers", {}), "Test preconfigured server not found"
         
         # Execute add command
         commands.add_command(args)

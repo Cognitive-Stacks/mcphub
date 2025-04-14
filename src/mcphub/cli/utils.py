@@ -2,6 +2,8 @@
 import json
 import os
 import re
+import platform
+import sys
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Tuple
 
@@ -126,12 +128,13 @@ def process_env_vars(server_config: Dict[str, Any], env_values: Dict[str, str]) 
     config["env"] = new_env
     return config
 
-def add_server_config(name: str, interactive: bool = True) -> Tuple[bool, Optional[List[str]]]:
+def add_server_config(name: str, interactive: bool = True, save_to_config: bool = True) -> Tuple[bool, Optional[List[str]]]:
     """Add a preconfigured server to the local config.
     
     Args:
         name: Name of the preconfigured server to add
         interactive: Whether to prompt for environment variables
+        save_to_config: Whether to save the server to the local .mcphub.json file
         
     Returns:
         Tuple of (success, missing_env_vars):
@@ -159,13 +162,14 @@ def add_server_config(name: str, interactive: bool = True) -> Tuple[bool, Option
             if var not in env_values and var not in os.environ:
                 missing_env_vars.append(var)
     
-    # Save to config
-    config = load_config()
-    if "mcpServers" not in config:
-        config["mcpServers"] = {}
-    
-    config["mcpServers"][name] = server_config
-    save_config(config)
+    # Save to config if requested
+    if save_to_config:
+        config = load_config()
+        if "mcpServers" not in config:
+            config["mcpServers"] = {}
+        
+        config["mcpServers"][name] = server_config
+        save_config(config)
     
     return True, missing_env_vars if missing_env_vars else None
 
@@ -194,3 +198,81 @@ def list_configured_servers() -> Dict[str, Any]:
     """List all servers in the local config."""
     config = load_config()
     return config.get("mcpServers", {})
+
+def get_claude_desktop_config_path() -> Optional[Path]:
+    """Get the path to Claude desktop configuration file based on the operating system.
+    
+    Returns:
+        Path object to the configuration file or None if the OS is not supported
+    """
+    system = platform.system()
+    
+    if system == "Darwin":  # macOS
+        return Path.home() / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
+    elif system == "Windows":
+        print(f"Detected Windows OS: {system}")
+        appdata = os.environ.get("AppData")
+        if not appdata:
+            return None
+        print(Path(appdata) / "Claude" / "claude_desktop_config.json")
+        return Path(appdata) / "Claude" / "claude_desktop_config.json"
+    
+    raise NotImplementedError(f"Unsupported operating system: {system}")
+
+def update_claude_desktop_config(mcp_server_name: str) -> Tuple[bool, Optional[str]]:
+    """Update Claude desktop configuration file to use the specified MCP server.
+    
+    Args:
+        mcp_server_name: Name of the MCP server to configure in Claude
+        
+    Returns:
+        Tuple of (success, config_path):
+          - success: True if the configuration was updated, False otherwise
+          - config_path: Path to the configuration file or None if failed
+    """
+    # Get the path to Claude's configuration file
+    config_path = get_claude_desktop_config_path()
+    print(f"Claude config path: {config_path}")
+    if not config_path:
+        return False, None
+    
+    # Ensure the directory exists
+    config_dir = config_path.parent
+    if not config_dir.exists():
+        try:
+            config_dir.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            return False, None
+    
+    # Load the existing configuration if it exists
+    claude_config = {}
+    if config_path.exists():
+        try:
+            with open(config_path, "r") as f:
+                claude_config = json.load(f)
+        except Exception:
+            # If the file exists but can't be parsed, start with an empty config
+            claude_config = {}
+    
+    # Load the MCPHub configuration to get the server details
+    mcphub_config = load_config()
+    server_config = mcphub_config.get("mcpServers", {}).get(mcp_server_name)    
+    # Ensure the mcpServers key exists in claude_config
+    if "mcpServers" not in claude_config:
+        claude_config["mcpServers"] = {}
+    
+    # Update Claude's configuration with MCP settings
+    claude_config["mcpServers"][mcp_server_name] = server_config
+
+    print(claude_config)
+    
+    # Add any additional settings needed for Claude's MCP integration
+    # This can be expanded as needed for future Claude desktop app versions
+    
+    # Save the configuration file
+    try:
+        with open(config_path, "w") as f:
+            json.dump(claude_config, f, indent=2)
+        return True, str(config_path)
+    except Exception:
+        return False, None
