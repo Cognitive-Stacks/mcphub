@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Any
 
-from .mcp_servers import MCPServersParams
+from .mcp_servers import MCPServersParams, MCPServers
 from .adapters.openai import MCPOpenAIAgentsAdapter
 from .adapters.langchain import MCPLangChainAdapter
 from .adapters.autogen import MCPAutogenAdapter
@@ -17,6 +17,7 @@ class MCPHub:
     def __post_init__(self):
         config_path = self._find_config_path()
         self.servers_params = MCPServersParams(config_path)
+        self.servers = MCPServers(self.servers_params)
 
     def _find_config_path(self) -> str:
         current_dir = Path.cwd()
