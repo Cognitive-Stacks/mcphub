@@ -1848,7 +1848,7 @@
           "command": "npm",
           "args": [
               "--prefix",
-              "/full/path/to/twitter-mcp-server.js",
+              "dist/twitter-mcp-server.js",
               "start"
           ]
       },

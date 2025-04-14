@@ -1,18 +1,22 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 
-from agents.mcp import MCPServerStdio
-from autogen_ext.tools.mcp import StdioMcpToolAdapter
-from langchain_core.tools import BaseTool
-from mcp import StdioServerParameters
-from .mcp_servers import MCPServerConfig, MCPServers, MCPServersParams
+from mcp import Tool
+
+from .adapters.autogen import MCPAutogenAdapter
+from .adapters.langchain import MCPLangChainAdapter
+from .adapters.openai import MCPOpenAIAgentsAdapter
+from .mcp_servers import MCPServers, MCPServersParams, MCPServerConfig
 
 
 @dataclass
 class MCPHub:
     servers_params: MCPServersParams = field(init=False)
-
+    _openai_adapter: Optional[MCPOpenAIAgentsAdapter] = field(init=False, default=None)
+    _langchain_adapter: Optional[MCPLangChainAdapter] = field(init=False, default=None)
+    _autogen_adapter: Optional[MCPAutogenAdapter] = field(init=False, default=None)
+    
     def __post_init__(self):
         config_path = self._find_config_path()
         self.servers_params = MCPServersParams(config_path)
@@ -24,62 +28,39 @@ class MCPHub:
             config_path = parent / ".mcphub.json"
             if config_path.exists():
                 return str(config_path)
-        # Instead of raising an error, return None to indicate no config file was found
-        # This will allow us to still use preconfigured servers
-        return None
+        raise FileNotFoundError("Configuration file '.mcphub.json' not found")
 
-    def fetch_server_params(self, mcp_name: str) -> Optional[MCPServerConfig]:
-        return self.servers_params.retrieve_server_params(mcp_name)
-    
-    def fetch_stdio_server_config(self, mcp_name: str) -> Optional[StdioServerParameters]:
-        return self.servers_params.convert_to_stdio_params(mcp_name)
-    
-    def fetch_openai_mcp_server(self, mcp_name: str, cache_tools_list: bool = True) -> MCPServerStdio:
-        """
-        Fetch and return an OpenAI MCP server instance.
-        
-        Args:
-            mcp_name: The name of the MCP server to fetch
-            cache_tools_list: Whether to cache the tools list
-            
-        Returns:
-            MCPServerStdio: The configured MCP server
-        """
-        return self.servers.make_openai_mcp_server(mcp_name, cache_tools_list)
-    
-    async def fetch_langchain_mcp_tools(self, mcp_name: str, cache_tools_list: bool = True) -> List[BaseTool]:
-        """
-        Fetch and return a list of Langchain MCP tools.
-        
-        Args:
-            mcp_name: The name of the MCP server to fetch
-            cache_tools_list: Whether to cache the tools list
-            
-        Returns:
-            List[BaseTool]: A list of Langchain MCP tools
-        """
-        return await self.servers.get_langchain_mcp_tools(mcp_name, cache_tools_list)
-    
-    async def fetch_autogen_mcp_adapters(self, mcp_name: str) -> List[StdioMcpToolAdapter]:
-        """
-        Fetch and return an Autogen MCP adapter.
-        
-        Args:
-            mcp_name: The name of the MCP server to fetch
-            
-        Returns:
-            StdioMcpToolAdapter: The configured MCP adapter
-        """
-        return await self.servers.make_autogen_mcp_adapters(mcp_name)
-    
-    async def list_tools(self, mcp_name: str) -> List[BaseTool]:
-        """
-        List all tools from an MCP server.
-        
-        Args:
-            mcp_name: The name of the MCP server configuration to use
+    @property
+    def openai_adapter(self) -> MCPOpenAIAgentsAdapter:
+        if self._openai_adapter is None:
+            self._openai_adapter = MCPOpenAIAgentsAdapter(self.servers_params)
+        return self._openai_adapter
 
-        Returns:
-            List[BaseTool]: List of tools provided by the MCP server
-        """
-        return await self.servers.list_tools(mcp_name)
+    @property
+    def langchain_adapter(self) -> MCPLangChainAdapter:
+        if self._langchain_adapter is None:
+            self._langchain_adapter = MCPLangChainAdapter(self.servers_params)
+        return self._langchain_adapter
+
+    @property
+    def autogen_adapter(self) -> MCPAutogenAdapter:
+        if self._autogen_adapter is None:
+            self._autogen_adapter = MCPAutogenAdapter(self.servers_params)
+        return self._autogen_adapter
+
+    def fetch_openai_mcp_server(self, mcp_name: str, cache_tools_list: bool = True) -> Any:
+        return self.openai_adapter.create_server(mcp_name, cache_tools_list=cache_tools_list)
+    
+    async def fetch_langchain_mcp_tools(self, mcp_name: str) -> List[Any]:
+        return await self.langchain_adapter.create_tools(mcp_name)
+    
+    async def fetch_autogen_mcp_adapters(self, mcp_name: str) -> List[Any]:
+        return await self.autogen_adapter.create_adapters(mcp_name)
+    
+    async def list_tools(self, server_name: str) -> List[Tool]:
+        return await self.servers.list_tools(server_name)
+    
+    def list_servers(self) -> List[MCPServerConfig]:
+        return self.servers_params.list_servers()
+
+    

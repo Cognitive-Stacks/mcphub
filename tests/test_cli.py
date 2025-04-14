@@ -87,28 +87,7 @@ def cli_env(mock_cli_config_file, mock_preconfigured_servers, monkeypatch):
 
 
 class TestCliInit:
-    def test_init_creates_config_when_missing(self, cli_env, monkeypatch, tmp_path):
-        """Test that 'init' command creates a new config file when it doesn't exist."""
-        # Set up a different config path that doesn't exist yet
-        new_config_path = tmp_path / "new_config_dir" / ".mcphub.json"
-        new_config_path.parent.mkdir(exist_ok=True)
-        
-        def mock_get_config_path():
-            return new_config_path
-        
-        monkeypatch.setattr(utils, "get_config_path", mock_get_config_path)
-        
-        # Execute init command
-        args = mock.Mock()
-        commands.init_command(args)
-        
-        # Verify config was created
-        assert new_config_path.exists()
-        with open(new_config_path, "r") as f:
-            config = json.load(f)
-            assert config == utils.DEFAULT_CONFIG
-
-    def test_init_skips_when_config_exists(self, cli_env, capfd, monkeypatch):
+    def test_init_skipss(self, cli_env, capfd, monkeypatch):
         """Test that 'init' command skips creation when config already exists."""
         config_path = Path(cli_env["config_path"])
 

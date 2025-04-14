@@ -14,6 +14,7 @@ class MCPServerConfig:
     command: str
     args: List[str]
     env: Dict[str, str]
+    server_name: Optional[str] = None
     description: Optional[str] = None
     tags: Optional[List[str]] = None
     repo_url: Optional[str] = None
@@ -28,7 +29,11 @@ class MCPServersParams:
     @property
     def servers_params(self) -> List[MCPServerConfig]:
         """Return the list of server parameters."""
-        return list(self._servers_params.values())
+        server_configs = []
+        for server_name, server_params in self._servers_params.items():
+            server_params.server_name = server_name
+            server_configs.append(server_params)
+        return server_configs
 
     def _load_user_config(self) -> Dict:
         """Load user configuration from JSON file."""
@@ -60,70 +65,51 @@ class MCPServersParams:
         predefined_servers_params = self._load_predefined_servers_params()
         servers = {}
         
-        # If we have user configuration, process it normally
-        if config:
-            for mcp_name, server_config in config.items():
-                package_name = server_config.get("package_name")
-                
-                # Check if command and args are configured in user config
-                if "command" in server_config and "args" in server_config:
-                    # Use configuration directly from .mcphub.json
-                    servers[mcp_name] = MCPServerConfig(
-                        package_name=package_name,
-                        command=server_config["command"],
-                        args=server_config["args"],
-                        env=server_config.get("env", {}),
-                        description=server_config.get("description"),
-                        tags=server_config.get("tags"),
-                        repo_url=server_config.get("repo_url"),
-                        setup_script=server_config.get("setup_script")
-                    )
-                # Fallback to predefined configuration
-                elif package_name and predefined_servers_params.get("mcpServers", {}).get(package_name):
-                    cmd_info = predefined_servers_params["mcpServers"][package_name]
-                    servers[mcp_name] = MCPServerConfig(
-                        package_name=package_name,
-                        command=cmd_info.get("command"),
-                        args=cmd_info.get("args", []),
-                        env=server_config.get("env", {}),
-                        description=cmd_info.get("description"),
-                        tags=cmd_info.get("tags"),
-                        repo_url=cmd_info.get("repo_url"),
-                        setup_script=cmd_info.get("setup_script")
-                    )
-                else:
-                    raise ServerConfigNotFoundError(
-                        f"Server '{package_name}' must either have command and args configured in .mcphub.json "
-                        f"or be defined in mcphub_preconfigured_servers.json"
-                    )
+        for mcp_name, server_config in config.items():
+            package_name = server_config.get("package_name")
+            
+            # Check if command and args are configured in user config
+            if "command" in server_config and "args" in server_config:
+                # Use configuration directly from .mcphub.json
+                servers[mcp_name] = MCPServerConfig(
+                    package_name=package_name,
+                    command=server_config["command"],
+                    args=server_config["args"],
+                    env=server_config.get("env", {}),
+                    description=server_config.get("description"),
+                    tags=server_config.get("tags"),
+                    repo_url=server_config.get("repo_url"),
+                    setup_script=server_config.get("setup_script")
+                )
+            # Fallback to predefined configuration
+            elif package_name and predefined_servers_params.get("mcpServers", {}).get(package_name):
+                cmd_info = predefined_servers_params["mcpServers"][package_name]
+                servers[mcp_name] = MCPServerConfig(
+                    package_name=package_name,
+                    command=cmd_info.get("command"),
+                    args=cmd_info.get("args", []),
+                    env=server_config.get("env", {}),
+                    description=cmd_info.get("description"),
+                    tags=cmd_info.get("tags"),
+                    repo_url=cmd_info.get("repo_url"),
+                    setup_script=cmd_info.get("setup_script")
+                )
+            else:
+                raise ServerConfigNotFoundError(
+                    f"Server '{package_name}' must either have command and args configured in .mcphub.json "
+                    f"or be defined in mcphub_preconfigured_servers.json"
+                )
         
         return servers
+    
+    def list_servers(self) -> List[MCPServerConfig]:
+        return self.servers_params
     
     def retrieve_server_params(self, server_name: str) -> MCPServerConfig:
         # First check in the loaded servers
         if server_name in self._servers_params:
             return self._servers_params[server_name]
-        
-        # If not found, check if it's a direct reference to a predefined server
-        predefined_servers = self._load_predefined_servers_params().get("mcpServers", {})
-        if server_name in predefined_servers:
-            # This is a predefined server being referenced directly by its name
-            cmd_info = predefined_servers[server_name]
-            server_config = MCPServerConfig(
-                package_name=server_name,
-                command=cmd_info.get("command"),
-                args=cmd_info.get("args", []),
-                env=cmd_info.get("env", {}),
-                description=cmd_info.get("description"),
-                tags=cmd_info.get("tags"),
-                repo_url=cmd_info.get("repo_url"),
-                setup_script=cmd_info.get("setup_script")
-            )
-            # Store it in loaded servers for future requests
-            self._servers_params[server_name] = server_config
-            return server_config
-            
-        return None
+        raise ServerConfigNotFoundError(f"Server '{server_name}' not found")
     
     def convert_to_stdio_params(self, server_name: str) -> StdioServerParameters:
         server_params = self.retrieve_server_params(server_name)
